@@ -1,0 +1,129 @@
+import java.util.Arrays;
+import java.util.Random;
+
+public class MST {
+    public static double totalEdgeWeight(Graph g){
+        double totalWeight = 0.0;
+
+        for(int x = 0; x < g.numVertices(); x++){
+            for (int z=x+1; z < g.numVertices(); z++){
+                if (g.isEdge(x, z)){
+                    totalWeight += g.weight(x, z);
+                }
+            }
+        }
+
+        return totalWeight;
+    }
+
+    public static Graph getRandomGraph(int n, double p){
+        Graph randomGraph = new MatrixGraph(n, Graph.UNDIRECTED_GRAPH);
+        Random ran = new Random();
+
+        for(int i = 0; i < n; i++){
+            for (int j = i + 1; j < n; j++){
+                if(ran.nextDouble() < p){
+                    double weight = ran.nextDouble();
+                    randomGraph.addEdge(i,j,weight);
+                    randomGraph.addEdge(j,i,weight);
+                }
+            }
+        }
+        return randomGraph;
+    }
+    static class ComponentTracker{
+        private int[] r;
+
+        public ComponentTracker(int numVertices){
+            r = new int[numVertices];
+
+            for (int i = 0; i < numVertices; i++){
+                r[i] = i;
+            }
+
+        }
+        int representativeOf(int x){
+            if (r[x] != x) {
+                r[x] = representativeOf(r[x]);
+            }
+            return r[x];
+        }
+        boolean inSameComponent(int x, int y){
+            return representativeOf(x) == representativeOf(y);
+
+        }
+        void mergeComponents(int x, int y){
+            int repX = representativeOf(x);
+            int repY = representativeOf(y);
+
+            r[repY] = repX;
+        }
+
+
+
+    }
+    public static Graph spanningTree(Graph g){
+        if (g.isDirected()){
+            throw new IllegalArgumentException("Graph must be undirected");
+        }
+
+        MatrixGraph T = new MatrixGraph(g.numVertices(), Graph.UNDIRECTED_GRAPH);
+        ComponentTracker tracker = new ComponentTracker(g.numVertices());
+
+        boolean addedNewEdge;
+        do{
+            addedNewEdge = false;
+            double[] minEdgeWeight = new double[g.numVertices];
+            Arrays.fill(minEdgeWeight, Double.MAX_VALUE);
+            int [] minEdgeTo = new int[g.numVertices];
+
+            for (int x = 0; x < g.numVertices; x++){
+                for (int y = 0; y < g.numVertices; y++){
+                    if (g.isEdge(x, y) && !tracker.inSameComponent(x, y)){
+                        double weight = g.weight(x, y);
+                        if (weight < minEdgeWeight[tracker.representativeOf(x)]){
+                            minEdgeWeight[tracker.representativeOf(x)] = weight;
+                            minEdgeTo[tracker.representativeOf(x)] = y;
+                        }
+                    }
+                }
+            }
+            for (int x = 0; x < g.numVertices(); x++){
+                int y = minEdgeTo[x];
+                if (y >= 0 && minEdgeWeight[x] != Double.MAX_VALUE && !T.isEdge(x, y)){
+                    T.addEdge(x, y, minEdgeWeight[x]);
+                    T.addEdge(y, x, minEdgeWeight[x]);
+                    tracker.mergeComponents(x, y);
+                    addedNewEdge = true;
+                }
+            }
+        } while (addedNewEdge);
+
+        return T;
+    }
+
+    public static void main(String[] args) {
+     Graph g = GraphOfEssex.getGraph();
+     double totalWeightOriginal = totalEdgeWeight(g);
+     System.out.println("Total Edge Weight of Graph of Essex: " + totalWeightOriginal);
+     Graph mst = spanningTree(g);
+     double totalWeightMST = totalEdgeWeight(mst);
+     System.out.println("Total Edge Weight of MST (Graph of Essex): " + totalWeightMST);
+
+     Graph randomGraph = getRandomGraph(100,0.4);
+     double totalWeightRandomGraph = totalEdgeWeight(randomGraph);
+        System.out.println("Total Edge Weight of Random Graph: " + totalWeightRandomGraph);
+
+     final int numGraphs = 100;
+     final int numVertices = 100;
+     final double edgeProb = 0.4;
+     double totalMSTWeight = 0.0;
+     for (int i = 0; i < numGraphs; i++){
+         Graph ranGraph = getRandomGraph(numVertices, edgeProb);
+         Graph MST = spanningTree(ranGraph);
+         totalMSTWeight += totalEdgeWeight(MST);
+     }
+     double averageMSTWeight = totalMSTWeight / numGraphs;
+        System.out.println("Average Total Edge Weight of MSTs: " + averageMSTWeight);
+    }
+}
